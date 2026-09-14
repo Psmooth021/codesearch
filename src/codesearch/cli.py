@@ -13,7 +13,7 @@ from rich.syntax import Syntax
 from rich.table import Table
 
 from codesearch import __version__
-from codesearch.config import DEFAULT_EMBEDDING_MODEL, Settings
+from codesearch.config import CHUNKER_VERSION, DEFAULT_EMBEDDING_MODEL, Settings
 from codesearch.embedding import Embedder
 from codesearch.eval.harness import DEFAULT_QUERIES_PATH, format_markdown_table, run_eval
 from codesearch.indexer import default_index_dir, index_repo
@@ -28,6 +28,14 @@ def _version_callback(value: bool) -> None:
     if value:
         console.print(f"codesearch {__version__}")
         raise typer.Exit()
+
+
+def _warn_if_chunker_stale(manifest: dict | None) -> None:
+    if manifest is not None and manifest.get("chunker_version") != CHUNKER_VERSION:
+        console.print(
+            "[yellow]warning:[/yellow] this index was built with an older chunking version - "
+            "run `codesearch index` again to rebuild with the current chunker."
+        )
 
 
 @app.callback()
@@ -64,6 +72,12 @@ def index(
             console.print(f"[red]error:[/red] {e}")
             raise typer.Exit(code=1) from e
 
+    if stats.chunker_upgraded:
+        console.print(
+            "[yellow]Chunking logic has changed since this index was last built - "
+            "did a full rebuild to pick up the improvement.[/yellow]"
+        )
+
     table = Table(show_header=False)
     table.add_row("Files scanned", str(stats.files_scanned))
     table.add_row("Files indexed (new/changed)", str(stats.files_indexed))
@@ -93,6 +107,9 @@ def query(
     except IndexNotFoundError as e:
         console.print(f"[red]error:[/red] {e}")
         raise typer.Exit(code=1) from e
+
+    if not as_json:
+        _warn_if_chunker_stale(store.load_manifest())
 
     try:
         hits = run_query(store, embedder, question, k=k, language=language)
@@ -181,9 +198,12 @@ def status(path: Path = typer.Option(Path("."), "--path")) -> None:
         table = Table(show_header=False)
         table.add_row("Index path", str(index_dir))
         table.add_row("Embedding model", manifest["embedding_model"])
+        chunker_ver = f"{manifest.get('chunker_version')} (current: {CHUNKER_VERSION})"
+        table.add_row("Chunker version", chunker_ver)
         table.add_row("Chunk count", str(store.chunk_count()))
         table.add_row("Indexed files", str(len(store.indexed_file_paths())))
         console.print(table)
+        _warn_if_chunker_stale(manifest)
     finally:
         store.close()
 

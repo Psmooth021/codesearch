@@ -3,12 +3,13 @@ the obviously-relevant chunk comes back near the top. This is the one test
 that exercises the whole pipeline (walker -> chunker -> embedder ->
 vectorstore -> search) together, not just each piece in isolation."""
 
+import json
 import shutil
 from pathlib import Path
 
 import pytest
 
-from codesearch.config import Settings
+from codesearch.config import CHUNKER_VERSION, Settings
 from codesearch.embedding import Embedder
 from codesearch.indexer import index_repo
 from codesearch.search import open_store
@@ -64,3 +65,23 @@ def test_changed_file_gets_reindexed(indexed_repo, embedder):
     stats = index_repo(indexed_repo, settings=Settings(), embedder=embedder)
     assert stats.files_indexed == 1
     assert stats.files_skipped_unchanged == stats.files_scanned - 1
+
+
+def test_stale_chunker_version_triggers_automatic_rebuild(indexed_repo, embedder):
+    """Regression test: a plain re-run of `codesearch index` (no --rebuild)
+    against an index built by an older chunker version must fully
+    re-chunk every file, not silently keep serving chunks produced by the
+    old chunking logic just because file content hashes are unchanged."""
+    manifest_path = indexed_repo / ".codesearch" / "manifest.json"
+    manifest = json.loads(manifest_path.read_text())
+    manifest["chunker_version"] = CHUNKER_VERSION - 1
+    manifest_path.write_text(json.dumps(manifest))
+
+    stats = index_repo(indexed_repo, settings=Settings(), embedder=embedder)
+
+    assert stats.chunker_upgraded is True
+    assert stats.files_skipped_unchanged == 0
+    assert stats.files_indexed == stats.files_scanned
+
+    updated_manifest = json.loads(manifest_path.read_text())
+    assert updated_manifest["chunker_version"] == CHUNKER_VERSION

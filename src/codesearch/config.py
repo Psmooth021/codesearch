@@ -21,6 +21,18 @@ from pydantic import BaseModel, ConfigDict, Field
 DEFAULT_EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 BASELINE_EMBEDDING_MODEL = "flax-sentence-embeddings/st-codesearch-distilroberta-base"
 
+# Bump whenever chunking logic changes in a way that would produce
+# different chunks for already-indexed files (new/changed chunker, new
+# language support, changed chunk-boundary rules, etc). Checked against
+# each index's manifest.json so a stale index gets flagged instead of
+# silently continuing to serve chunks from the old chunking logic forever
+# (incremental indexing only re-chunks a file when its *content* hash
+# changes - a chunker change alone won't trigger a re-chunk on its own).
+# v1: initial Python/JS/TS/TSX chunkers.
+# v2: added the Markdown chunker (previously .md fell through to the
+#     naive fallback windower).
+CHUNKER_VERSION = 2
+
 INDEX_DIR_NAME = ".codesearch"
 INDEX_FILE_NAME = "index.faiss"
 METADATA_DB_NAME = "metadata.db"
