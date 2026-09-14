@@ -51,13 +51,14 @@ codesearch eval [--repo NAME] [--baseline naive]   # run the eval harness (see b
 
 ## Chunking strategy
 
-Built on [tree-sitter](https://tree-sitter.github.io/) via `tree-sitter-language-pack`, with dedicated chunkers for Python and JS/TS/TSX:
+Built on [tree-sitter](https://tree-sitter.github.io/) via `tree-sitter-language-pack`, with dedicated chunkers for Python, JS/TS/TSX, and Markdown:
 
 - **One chunk per function/method** — full signature + body + its docstring (Python) or directly-adjacent leading comment (JS/TS), not an arbitrary window of lines.
 - **One summary chunk per class** — signature + docstring + a synthesized method list, so "what does the `RetryPolicy` class do" matches at class granularity instead of being buried inside one arbitrary method. TS/TSX interfaces get the same treatment.
 - **A context header** prepended before embedding (file path, enclosing class, leading imports) — the citation range (`start_line`/`end_line`) still points at the real code, only the *embedded* text carries the extra context.
 - **The CommonJS `obj.method = function () {...}` idiom is handled explicitly** — not just ES6 classes/`const`. Express's entire `lib/application.js` and `lib/response.js` are written this way (`app.set = function set(...) {...}`), and a chunker that only understood `function`/`class`/`const` declarations would silently fall back to windowing this repo's most important files. This was a real bug caught by running the chunker against Express during eval-corpus prep, not a hypothetical edge case.
-- **Oversized functions** (> ~2000 whitespace-tokens) split at nested function/class boundaries first, falling back to an overlapping line-window (tagged `truncated=True`) only if there's nothing to split on.
+- **Markdown (`.md`) gets the same treatment as code, not the naive fallback**: `chunking/markdown_chunker.py` splits on the document's actual heading structure (also via tree-sitter, so a `#` inside a fenced code example is correctly *not* treated as a heading) instead of arbitrary line windows. Each chunk is one section — heading + its own content, excluding nested subsections, which become their own chunks — carrying a breadcrumb of ancestor headings (e.g. `Evaluation harness > Result 2: ... the surprise`) so the embedding knows what document and section it's from. This project's own README is indexed this way; `codesearch query "what embedding model does this project use by default and why"` against it correctly ranks the README's own "Result 2" section first, ahead of the actual embedding code.
+- **Oversized functions/sections** (> ~2000 whitespace-tokens) split at nested function/class boundaries first (or are left as one section, for Markdown, since there's no smaller structural unit than a section), falling back to an overlapping line-window (tagged `truncated=True`) only if there's nothing to split on.
 - **Anything not captured by the above** (bare module-level statements, files in languages without a dedicated chunker) is grouped into overlapping sliding-window chunks, so nothing is silently dropped from the index — it's just less precisely chunked.
 
 ### Why this matters
@@ -133,8 +134,9 @@ src/codesearch/
   chunking/
     python_chunker.py    tree-sitter Python: function/method/class chunks
     javascript_chunker.py tree-sitter JS/TS/TSX: same, + CommonJS idiom
+    markdown_chunker.py    tree-sitter Markdown: one chunk per heading section
     fallback.py           naive sliding-window chunker + eval baseline
-    text_utils.py         shared token-counting/windowing helpers
+    text_utils.py         shared token-counting/windowing/node helpers
   eval/
     harness.py          runs queries.jsonl, computes metrics, writes tables
     metrics.py           precision@k / recall@k / MRR - pure functions
@@ -158,7 +160,8 @@ The one integration test (`tests/test_index_roundtrip.py`) exercises the whole p
 ## Limitations & future work
 
 - No cross-file understanding (call graphs, "who calls this function") — each chunk is scored independently.
-- Python and JS/TS/TSX only; other languages fall back to naive windowing (still indexed, just less precisely).
+- Python, JS/TS/TSX, and Markdown only; other languages/file types fall back to naive windowing (still indexed, just less precisely).
+- The Markdown chunker only recognizes ATX-style headings (`# Heading`), not the older Setext style (`Heading\n===`) - rare in practice, but a real gap.
 - Exact search only; no approximate index. Documented above as the right call at this scale, but would need to change well before 1M+ vectors.
 - No reranking step — a cross-encoder reranking FAISS's top-k candidates would likely improve precision@1 further; left out to keep query latency low and the pipeline easy to reason about.
 

@@ -21,3 +21,8 @@ eval_results.json
 
 .vscode/
 .idea/
+
+# Not part of this project - an unrelated repo (its own .git) that ended up
+# nested here from something else entirely. Left in place untouched, just
+# excluded from this project's git/tooling.
+/YuE/

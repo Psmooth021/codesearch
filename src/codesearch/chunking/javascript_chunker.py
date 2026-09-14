@@ -15,7 +15,9 @@ from tree_sitter import Node
 from tree_sitter_language_pack import get_parser
 
 from codesearch.chunking.base import Chunk
+from codesearch.chunking.text_utils import line_range as _line_range
 from codesearch.chunking.text_utils import line_windows, token_count
+from codesearch.chunking.text_utils import node_text as _node_text
 from codesearch.config import Settings
 from codesearch.utils.hashing import content_hash
 
@@ -34,14 +36,6 @@ _DECLARATION_TYPES = (
     "interface_declaration",
     "type_alias_declaration",
 )
-
-
-def _node_text(node: Node, source: bytes) -> str:
-    return source[node.start_byte : node.end_byte].decode("utf-8", errors="replace")
-
-
-def _line_range(node: Node) -> tuple[int, int]:
-    return node.start_point.row + 1, node.end_point.row + 1
 
 
 def _leading_comment(node: Node, source: bytes) -> str:

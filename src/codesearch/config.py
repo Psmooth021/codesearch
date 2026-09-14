@@ -71,6 +71,8 @@ LANGUAGE_EXTENSIONS = {
     ".mjs": "javascript",
     ".ts": "typescript",
     ".tsx": "tsx",
+    ".md": "markdown",
+    ".markdown": "markdown",
 }
 
 

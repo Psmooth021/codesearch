@@ -2,6 +2,19 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from tree_sitter import Node
+
+
+def node_text(node: Node, source: bytes) -> str:
+    return source[node.start_byte : node.end_byte].decode("utf-8", errors="replace")
+
+
+def line_range(node: Node) -> tuple[int, int]:
+    return node.start_point.row + 1, node.end_point.row + 1
+
 
 def token_count(text: str) -> int:
     """Whitespace-split token count - a cheap proxy for model tokens,
