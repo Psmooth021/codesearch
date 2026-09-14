@@ -5,6 +5,7 @@ without going through this layer."""
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import typer
@@ -19,6 +20,14 @@ from codesearch.eval.harness import DEFAULT_QUERIES_PATH, format_markdown_table,
 from codesearch.indexer import default_index_dir, index_repo
 from codesearch.search import IndexNotFoundError, open_store
 from codesearch.search import query as run_query
+
+# Windows consoles default to a legacy codepage (cp1252, not UTF-8), so
+# printing code/docs containing emoji or other non-Latin-1 characters
+# (increasingly common in READMEs) would otherwise crash with a
+# UnicodeEncodeError instead of just displaying '?' for the odd glyph.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(encoding="utf-8", errors="replace")
 
 app = typer.Typer(add_completion=False, no_args_is_help=True)
 console = Console()
