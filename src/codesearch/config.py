@@ -31,7 +31,10 @@ BASELINE_EMBEDDING_MODEL = "flax-sentence-embeddings/st-codesearch-distilroberta
 # v1: initial Python/JS/TS/TSX chunkers.
 # v2: added the Markdown chunker (previously .md fell through to the
 #     naive fallback windower).
-CHUNKER_VERSION = 2
+# v3: Markdown chunker also recognizes raw HTML heading tags (<h1>...</h1>)
+#     as section boundaries, not just markdown `#` headings - common in
+#     READMEs with a centered logo/title block.
+CHUNKER_VERSION = 3
 
 INDEX_DIR_NAME = ".codesearch"
 INDEX_FILE_NAME = "index.faiss"

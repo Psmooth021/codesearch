@@ -96,3 +96,63 @@ def test_context_header_includes_breadcrumb():
     chunks = chunk(src)
     sub = next(c for c in chunks if c.symbol_name == "Sub")
     assert "Top > Sub" in sub.embed_text
+
+
+def test_raw_html_h1_gets_its_own_chunk():
+    # The common "centered logo + HTML title" README style: a single-line
+    # <h1>...</h1> doesn't qualify as tree-sitter's own html_block node
+    # type (CommonMark's HTML block rules require an opening/closing tag
+    # alone on the line, not open+content+close together) - it parses as a
+    # plain paragraph, so a naive "only handle atx_heading" chunker would
+    # bury the title in an undifferentiated intro blob.
+    src = (
+        '<p align="center"><img src="logo.png" /></p>\n\n'
+        '<h1 align="center">MyProject: Doing Cool Things Fast</h1>\n\n'
+        '<p align="center"><strong>Tagline.</strong></p>\n\n'
+        "## Installation\n\nRun pip install.\n"
+    )
+    chunks = chunk(src)
+    title_chunk = next(c for c in chunks if c.symbol_name == "MyProject: Doing Cool Things Fast")
+    assert "<h1" in title_chunk.code_text
+    assert "logo.png" not in title_chunk.code_text
+
+    intro_chunk = next(c for c in chunks if c.symbol_name == "intro")
+    assert "logo.png" in intro_chunk.code_text
+    assert "MyProject" not in intro_chunk.code_text
+
+
+def test_inline_html_tag_inside_prose_does_not_split():
+    src = (
+        "# Docs\n\n"
+        "You can embed a heading like <h2>this</h2> inline in a sentence, "
+        "it should not split here.\n\n"
+        "Normal paragraph continues.\n"
+    )
+    chunks = chunk(src)
+    assert len(chunks) == 1
+    assert chunks[0].symbol_name == "Docs"
+    assert "<h2>this</h2>" in chunks[0].code_text
+
+
+def test_html_heading_breadcrumb_nests_under_atx_ancestor():
+    src = (
+        "# Top\n\nintro\n\n"
+        "<h2>Embedded Title</h2>\n\ncontent under it\n\n"
+        "## Sub\n\nsub content\n"
+    )
+    chunks = chunk(src)
+    html_chunk = next(c for c in chunks if c.symbol_name == "Embedded Title")
+    assert html_chunk.qualified_name == "Top > Embedded Title"
+    sub_chunk = next(c for c in chunks if c.symbol_name == "Sub")
+    assert sub_chunk.qualified_name == "Top > Sub"
+
+
+def test_multiple_html_headings_each_get_their_own_chunk():
+    src = "<h1>First</h1>\n\ntext a\n\n<h1>Second</h1>\n\ntext b\n"
+    chunks = chunk(src)
+    names = {c.symbol_name for c in chunks}
+    assert names == {"First", "Second"}
+    first = next(c for c in chunks if c.symbol_name == "First")
+    second = next(c for c in chunks if c.symbol_name == "Second")
+    assert "text a" in first.code_text and "text b" not in first.code_text
+    assert "text b" in second.code_text and "text a" not in second.code_text
