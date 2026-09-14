@@ -1,0 +1,61 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "codesearch"
+version = "0.1.0"
+description = "AST-aware semantic code search CLI with a real precision/recall eval harness"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "sentence-transformers>=3.0",
+    "faiss-cpu>=1.8",
+    # tree-sitter>=0.26 corrupts Node data (segfaults) against the
+    # precompiled grammars in tree-sitter-language-pack 1.19.x - pin below
+    # the breaking ABI change until language-pack publishes a compatible build.
+    "tree-sitter>=0.23,<0.25",
+    "tree-sitter-language-pack>=0.2",
+    "typer>=0.12",
+    "rich>=13.7",
+    "pathspec>=0.12",
+    "numpy>=1.26",
+    "pydantic>=2.6",
+    "tqdm>=4.66",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=5.0",
+    "ruff>=0.5",
+    "mypy>=1.10",
+    "pre-commit>=3.7",
+    "types-PyYAML>=6.0",
+]
+
+[project.scripts]
+codesearch = "codesearch.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/codesearch"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.per-file-ignores]
+# Typer's documented pattern is typer.Option(...)/typer.Argument(...) as the
+# parameter default - not the mutable-default footgun B008 is meant to catch.
+"src/codesearch/cli.py" = ["B008"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "integration: slower tests that download/run a real embedding model (deselect with -m 'not integration')",
+]

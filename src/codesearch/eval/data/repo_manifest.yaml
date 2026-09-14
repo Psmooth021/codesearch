@@ -1,0 +1,21 @@
+# Pinned to exact commits so `codesearch eval` numbers are reproducible -
+# not "whatever HEAD happened to be today." Re-pin deliberately (and
+# re-author queries.jsonl against the new state) if these ever need bumping.
+repos:
+  - name: requests
+    url: https://github.com/psf/requests.git
+    commit: dae7ef63b4df6eded86637f251fc4e3a06c3b479
+    language: python
+    # src/ layout - ground-truth query file paths (e.g. requests/adapters.py)
+    # are relative to this, not the repo root.
+    root: src
+  - name: flask
+    url: https://github.com/pallets/flask.git
+    commit: d73fa1cdcbd8b1465c151db8924ba58b1dd14e35
+    language: python
+    root: src
+  - name: express
+    url: https://github.com/expressjs/express.git
+    commit: 3ce6d0eb86e9d93529ff3191c6bb5db8ce6e72c8
+    language: javascript
+    root: .

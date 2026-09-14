@@ -1,0 +1,23 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# codesearch index artifacts
+.codesearch/
+
+# eval scratch data (downloaded, not checked in)
+eval_repos/
+eval_results.json
+
+.vscode/
+.idea/

@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install
+        run: pip install -e ".[dev]"
+
+      - name: Ruff
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy src
+
+      # Fixture-only tests: no model download, no real repo clone - fast
+      # and deterministic. The full `codesearch eval` run against pinned
+      # OSS repos (scripts/download_eval_repos.py) is a manual/local step,
+      # documented in the README, not part of CI.
+      - name: Pytest (fixtures only)
+        run: pytest -m "not integration" -q
